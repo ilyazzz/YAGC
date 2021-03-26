@@ -29,10 +29,14 @@ impl PowerProfileFrame {
         combo_box.append(Some("0"), "Automatic");
         combo_box.append(Some("1"), "Highest clocks");
         combo_box.append(Some("2"), "Lowest clocks");
+        combo_box.append(Some("3"), "Manual");
 
         root_box.pack_start(&combo_box, false, true, 5);
 
         let description_label = Label::new(Some("A description is supposed to be here"));
+
+        description_label.set_line_wrap(true);
+        //description_label.set_line_wrap_mode(pango::WrapMode::Word);
 
         root_box.pack_start(&description_label, false, true, 5);
 
@@ -45,6 +49,8 @@ impl PowerProfileFrame {
                     .set_text("Always use the highest clockspeeds for GPU and VRAM."),
                 2 => description_label
                     .set_text("Always use the lowest clockspeeds for GPU and VRAM."),
+                3 => description_label
+                    .set_text("This setting allow you to manually choose enabled power states."),
                 _ => unreachable!(),
             });
         }
@@ -62,6 +68,7 @@ impl PowerProfileFrame {
             PowerProfile::Auto => self.combo_box.set_active_id(Some("0")),
             PowerProfile::High => self.combo_box.set_active_id(Some("1")),
             PowerProfile::Low => self.combo_box.set_active_id(Some("2")),
+            PowerProfile::Manual => self.combo_box.set_active_id(Some("3")),
         };
     }
 
@@ -76,6 +83,7 @@ impl PowerProfileFrame {
             0 => PowerProfile::Auto,
             1 => PowerProfile::High,
             2 => PowerProfile::Low,
+            3 => PowerProfile::Manual,
             _ => unreachable!(),
         }
     }

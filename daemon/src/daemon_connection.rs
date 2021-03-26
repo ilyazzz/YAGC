@@ -1,8 +1,11 @@
-use crate::config::Config;
-use crate::gpu_controller::{FanControlInfo, GpuStats};
-use crate::gpu_controller::{GpuInfo, PowerProfile};
+use crate::gpu_controller::{GpuInfo, PowerProfile, oc_controller::{BasicClocksTable, OldClocksTable}};
 use crate::Daemon;
 use crate::DaemonError;
+use crate::{config::Config, OldOCControllerAction};
+use crate::{
+    gpu_controller::{FanControlInfo, GpuStats},
+    OcControllerType,
+};
 use crate::{Action, DaemonResponse, SOCK_PATH};
 use std::collections::{BTreeMap, HashMap};
 
@@ -149,14 +152,53 @@ impl DaemonConnection {
         }
     }
 
-    /*pub fn set_gpu_power_state(&self, gpu_id: u32, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
-        match self.send_action(Action::SetGPUPowerState(gpu_id, num, clockspeed, voltage))? {
+    // TODO: make a separate handler for all the OcController-specific commands
+    pub fn old_oc_controller_set_gpu_power_state(
+        &self,
+        gpu_id: u32,
+        num: u32,
+        clockspeed: i64,
+        voltage: Option<i64>,
+    ) -> Result<(), DaemonError> {
+        match self.send_action(Action::OcControllerOld(
+            gpu_id,
+            OldOCControllerAction::SetGPUPowerState(num, clockspeed, voltage),
+        ))? {
             DaemonResponse::OK => Ok(()),
             _ => unreachable!(),
         }
-    }*/
+    }
 
-    pub fn set_gpu_max_power_state(
+    pub fn old_oc_controller_set_vram_power_state(
+        &self,
+        gpu_id: u32,
+        num: u32,
+        clockspeed: i64,
+        voltage: Option<i64>,
+    ) -> Result<(), DaemonError> {
+        match self.send_action(Action::OcControllerOld(
+            gpu_id,
+            OldOCControllerAction::SetVRAMPowerState(num, clockspeed, voltage),
+        ))? {
+            DaemonResponse::OK => Ok(()),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn old_oc_controller_get_clocks_table(
+        &self,
+        gpu_id: u32,
+    ) -> Result<OldClocksTable, DaemonError> {
+        match self.send_action(Action::OcControllerOld(
+            gpu_id,
+            OldOCControllerAction::GetClocksTable,
+        ))? {
+            DaemonResponse::OldClocksTable(table) => Ok(table),
+            _ => unreachable!(),
+        }
+    }
+
+    /*pub fn set_gpu_max_power_state(
         &self,
         gpu_id: u32,
         clockspeed: i64,
@@ -166,32 +208,55 @@ impl DaemonConnection {
             DaemonResponse::OK => Ok(()),
             _ => unreachable!(),
         }
-    }
+    }*/
 
-    pub fn set_vram_max_clock(&self, gpu_id: u32, clockspeed: i64) -> Result<(), DaemonError> {
-        match self.send_action(Action::SetVRAMMaxClock(gpu_id, clockspeed))? {
+    /*pub fn new_controller_set_vram_max_clock(&self, gpu_id: u32, clockspeed: i64) -> Result<(), DaemonError> {
+        match self.send_action(Action(gpu_id, clockspeed))? {
             DaemonResponse::OK => Ok(()),
             _ => unreachable!(),
         }
-    }
+    }*/
 
+    // TODO
     pub fn commit_gpu_power_states(&self, gpu_id: u32) -> Result<(), DaemonError> {
-        match self.send_action(Action::CommitGPUPowerStates(gpu_id))? {
+        /*match self.send_action(Action::CommitGPUPowerStates(gpu_id))? {
             DaemonResponse::OK => Ok(()),
             _ => unreachable!(),
-        }
+        }*/
+        Ok(())
     }
 
     pub fn reset_gpu_power_states(&self, gpu_id: u32) -> Result<(), DaemonError> {
-        match self.send_action(Action::ResetGPUPowerStates(gpu_id))? {
-            DaemonResponse::OK => Ok(()),
-            _ => unreachable!(),
-        }
+        /*match self.send_action(Action::ResetGPUPowerStates(gpu_id))? {
+        DaemonResponse::OK => Ok(()),
+        _ => unreachable!(),
+        }*/
+        Ok(())
     }
 
     pub fn get_gpus(&self) -> Result<HashMap<u32, Option<String>>, DaemonError> {
         match self.send_action(Action::GetGpus)? {
             DaemonResponse::Gpus(gpus) => Ok(gpus),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn get_oc_controller_type(
+        &self,
+        gpu_id: u32,
+    ) -> Result<Option<OcControllerType>, DaemonError> {
+        match self.send_action(Action::GetOCController(gpu_id))? {
+            DaemonResponse::OcControllerType(oc_controller_type) => Ok(oc_controller_type),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn basic_oc_controller_get_table(
+        &self,
+        gpu_id: u32,
+    ) -> Result<BasicClocksTable, DaemonError> {
+        match self.send_action(Action::OcControllerBasicGetTable(gpu_id))? {
+            DaemonResponse::BasicClocksTable(table) => Ok(table),
             _ => unreachable!(),
         }
     }

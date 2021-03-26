@@ -1,18 +1,19 @@
-mod clocks_frame;
+mod oc_frame;
 mod power_cap_frame;
 mod power_profile_frame;
 mod stats_grid;
 mod warning_frame;
 
-use clocks_frame::ClocksSettings;
-use daemon::gpu_controller::{GpuInfo, GpuStats, PowerProfile};
+use daemon::gpu_controller::{oc_controller::ClocksTable, GpuInfo, GpuStats, PowerProfile};
 use gtk::*;
 
-use clocks_frame::ClocksFrame;
+use oc_frame::OcFrame;
 use power_cap_frame::PowerCapFrame;
 use power_profile_frame::PowerProfileFrame;
 use stats_grid::StatsGrid;
 use warning_frame::WarningFrame;
+
+use self::oc_frame::ClocksSettings;
 
 #[derive(Clone)]
 pub struct OcPage {
@@ -20,7 +21,7 @@ pub struct OcPage {
     stats_grid: StatsGrid,
     power_profile_frame: PowerProfileFrame,
     power_cap_frame: PowerCapFrame,
-    clocks_frame: ClocksFrame,
+    oc_frame: OcFrame,
     pub warning_frame: WarningFrame,
 }
 
@@ -44,15 +45,15 @@ impl OcPage {
 
         container.pack_start(&power_profile_frame.container, false, true, 0);
 
-        let clocks_frame = ClocksFrame::new();
+        let oc_frame = OcFrame::new();
 
-        container.pack_start(&clocks_frame.container, false, true, 0);
+        container.pack_start(&oc_frame.container, false, true, 0);
 
         Self {
             container,
             stats_grid,
             power_profile_frame,
-            clocks_frame,
+            oc_frame,
             warning_frame,
             power_cap_frame,
         }
@@ -63,7 +64,7 @@ impl OcPage {
     }
 
     pub fn connect_clocks_reset<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.clocks_frame.connect_clocks_reset(move || {
+        self.oc_frame.connect_clocks_reset(move || {
             f();
         });
     }
@@ -76,12 +77,12 @@ impl OcPage {
                     f();
                 });
         }
-        {
+        /*{
             let f = f.clone();
-            self.clocks_frame.connect_clocks_changed(move || {
+            self.oc_frame.connect_clocks_changed(move || {
                 f();
             })
-        }
+        }*/
         {
             self.power_cap_frame.connect_cap_changed(move || {
                 f();
@@ -106,24 +107,28 @@ impl OcPage {
         }
     }
 
-    pub fn set_info(&self, info: &GpuInfo) {
-        match &info.clocks_table {
+    pub fn set_clocks(&self, clocks: &Option<ClocksTable>) {
+        match clocks {
             Some(clocks_table) => {
-                self.clocks_frame.show();
-                self.clocks_frame.set_clocks(clocks_table);
+                self.oc_frame.show();
+                self.oc_frame.set_clocks(clocks_table.clone());
             }
-            None => self.clocks_frame.hide(),
+            None => self.oc_frame.hide(),
         }
 
+    }
+
+    pub fn set_info(&self, info: &GpuInfo) {
         self.power_cap_frame
             .set_data(info.power_cap, info.power_cap_max);
     }
 
     pub fn get_clocks(&self) -> Option<ClocksSettings> {
-        match self.clocks_frame.get_visibility() {
+        /*match self.clocks_frame.get_visibility() {
             true => Some(self.clocks_frame.get_settings()),
             false => None,
-        }
+        }*/
+        None
     }
 
     pub fn get_power_cap(&self) -> Option<i64> {

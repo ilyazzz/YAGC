@@ -1,5 +1,5 @@
 use colored::*;
-use daemon::daemon_connection::DaemonConnection;
+use daemon::{daemon_connection::DaemonConnection, OcControllerType};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -19,7 +19,7 @@ enum CurveOpt {
 }
 
 #[derive(StructOpt)]
-#[structopt(rename_all = "lower")]
+#[structopt(rename_all = "snake_case")]
 enum Opt {
     /// Realtime GPU information
     Metrics {
@@ -33,6 +33,8 @@ enum Opt {
         /// Specify a GPU ID as printed in `lact-cli gpus`. By default, all GPUs are printed.
         gpu_id: Option<u32>,
     },
+    ClocksTable,
+    SetBasicGpuLevels,
     Config(ConfigOpt),
     /// Fan curve control
     Curve(CurveOpt),
@@ -103,6 +105,47 @@ fn main() {
             ConfigOpt::AllowOnlineUpdating => enable_online_update(&d),
             ConfigOpt::DisallowOnlineUpdating => disable_online_update(&d),
         },
+        Opt::ClocksTable => {
+            let gpus = d.get_gpus().unwrap();
+
+            for (id, _) in gpus {
+                print_clocks_table(&d, id);
+            }
+        }
+        Opt::SetBasicGpuLevels => {
+            let gpus = d.get_gpus().unwrap();
+
+            for (id, _) in gpus {
+                print_clocks_table(&d, id);
+            }
+        }
+    }
+}
+
+fn set_basic_gpu_levels(d: &DaemonConnection, id: u32) {
+    let oc_controller = d.get_oc_controller_type(id).unwrap();
+
+    //oc_controller.set
+}
+
+
+fn print_clocks_table(d: &DaemonConnection, id: u32) {
+    let oc_controller = d.get_oc_controller_type(id).unwrap();
+
+    println!("OC Controller: {:?}", oc_controller);
+
+    match oc_controller {
+        Some(OcControllerType::Old) => {
+            let clocks_table = d.old_oc_controller_get_clocks_table(id).unwrap();
+
+            println!("Old clocks table format: {:?}", clocks_table);
+        }
+        Some(OcControllerType::Basic) => {
+            let clocks_table = d.basic_oc_controller_get_table(id).unwrap();
+
+            println!("Basic clocks table format: {:?}", clocks_table);
+        }
+        _ => unimplemented!(),
     }
 }
 

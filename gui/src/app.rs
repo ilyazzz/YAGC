@@ -13,9 +13,9 @@ use std::{
 };
 
 use apply_revealer::ApplyRevealer;
-use daemon::daemon_connection::DaemonConnection;
-use daemon::gpu_controller::GpuStats;
+use daemon::gpu_controller::{oc_controller::ClocksTable, GpuStats};
 use daemon::DaemonError;
+use daemon::{daemon_connection::DaemonConnection, OcControllerType};
 use gtk::*;
 
 use header::Header;
@@ -155,7 +155,8 @@ impl App {
                         .expect("Failed to set fan curve");
                 }
 
-                if let Some(clocks_settings) = app.root_stack.oc_page.get_clocks() {
+                // TODO REWORK THIS
+                /*if let Some(clocks_settings) = app.root_stack.oc_page.get_clocks() {
                     app.daemon_connection
                         .set_gpu_max_power_state(
                             gpu_id,
@@ -171,7 +172,7 @@ impl App {
                     app.daemon_connection
                         .commit_gpu_power_states(gpu_id)
                         .expect("Failed to commit power states");
-                }
+                }*/
 
                 if let Some(profile) = app.root_stack.oc_page.get_power_profile() {
                     app.daemon_connection
@@ -200,7 +201,30 @@ impl App {
 
         self.root_stack.info_page.set_info(&gpu_info);
 
+        let clocks_table = match self
+            .daemon_connection
+            .get_oc_controller_type(gpu_id)
+            .unwrap()
+        {
+            Some(oc_controller_type) => match oc_controller_type {
+                OcControllerType::New => unimplemented!(),
+                OcControllerType::Old => Some(ClocksTable::Old(
+                    self.daemon_connection
+                        .old_oc_controller_get_clocks_table(gpu_id)
+                        .unwrap(),
+                )),
+                OcControllerType::Basic => Some(ClocksTable::Basic(
+                    self.daemon_connection
+                        .basic_oc_controller_get_table(gpu_id)
+                        .unwrap(),
+                )),
+            },
+            None => None,
+        };
+
         log::trace!("Setting clocks");
+        self.root_stack.oc_page.set_clocks(&clocks_table);
+        
         self.root_stack.oc_page.set_info(&gpu_info);
 
         log::trace!("Setting power profile {:?}", gpu_info.power_profile);
