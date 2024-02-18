@@ -20,15 +20,7 @@ pub enum Request<'a> {
     DevicePowerProfileModes {
         id: &'a str,
     },
-    SetFanControl {
-        id: &'a str,
-        enabled: bool,
-        mode: Option<FanControlMode>,
-        static_speed: Option<f64>,
-        curve: Option<FanCurveMap>,
-        #[serde(default)]
-        pmfw: PmfwOptions,
-    },
+    SetFanControl(SetFanControl<'a>),
     ResetPmfw {
         id: &'a str,
     },
@@ -64,6 +56,22 @@ pub enum Request<'a> {
     DisableOverdrive,
     GenerateSnapshot,
     ConfirmPendingConfig(ConfirmCommand),
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(tag = "command", rename_all = "snake_case")]
+pub struct SetFanControl<'a> {
+    pub id: &'a str,
+    pub enabled: bool,
+    pub mode: Option<FanControlMode>,
+    pub static_speed: Option<f64>,
+    pub curve: Option<FanCurveMap>,
+    #[serde(default)]
+    pub pmfw: PmfwOptions,
+    #[serde(default)]
+    pub start_threshold: f64,
+    #[serde(default)]
+    pub stop_threshold: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]

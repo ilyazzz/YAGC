@@ -9,9 +9,9 @@ use amdgpu_sysfs::gpu_handle::{
 use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
-    request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
-    PowerStates, Request, Response, SystemInfo,
+    request::{ConfirmCommand, SetClocksCommand, SetFanControl},
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, PowerStates, Request, Response,
+    SystemInfo,
 };
 use serde::Deserialize;
 use std::{
@@ -104,24 +104,8 @@ impl DaemonClient {
         self.make_request(Request::ListDevices)
     }
 
-    pub fn set_fan_control(
-        &self,
-        id: &str,
-        enabled: bool,
-        mode: Option<FanControlMode>,
-        static_speed: Option<f64>,
-        curve: Option<FanCurveMap>,
-        pmfw: PmfwOptions,
-    ) -> anyhow::Result<u64> {
-        self.make_request(Request::SetFanControl {
-            id,
-            enabled,
-            mode,
-            static_speed,
-            curve,
-            pmfw,
-        })?
-        .inner()
+    pub fn set_fan_control(&self, command: SetFanControl<'_>) -> anyhow::Result<u64> {
+        self.make_request(Request::SetFanControl(command))?.inner()
     }
 
     pub fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<u64> {

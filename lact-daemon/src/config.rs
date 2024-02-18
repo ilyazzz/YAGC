@@ -107,6 +107,10 @@ pub struct FanControlSettings {
     pub temperature_key: String,
     pub interval_ms: u64,
     pub curve: FanCurve,
+    #[serde(default)]
+    pub start_threshold: f64,
+    #[serde(default)]
+    pub stop_threshold: f64,
 }
 
 impl Default for FanControlSettings {
@@ -117,6 +121,8 @@ impl Default for FanControlSettings {
             temperature_key: "edge".to_owned(),
             interval_ms: 500,
             curve: FanCurve(default_fan_curve()),
+            start_threshold: 0.0,
+            stop_threshold: 0.0,
         }
     }
 }
@@ -177,11 +183,10 @@ fn default_apply_settings_timer() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use lact_schema::{FanControlMode, PmfwOptions};
-    use std::collections::HashMap;
-
     use super::{ClocksConfiguration, Config, Daemon, FanControlSettings, Gpu};
     use crate::server::gpu_controller::fan_control::FanCurve;
+    use lact_schema::{FanControlMode, PmfwOptions};
+    use std::collections::HashMap;
 
     #[test]
     fn serde_de_full() {
@@ -197,6 +202,8 @@ mod tests {
                         interval_ms: 500,
                         mode: FanControlMode::Curve,
                         static_speed: 0.5,
+                        start_threshold: 0.15,
+                        stop_threshold: 0.10,
                     }),
                     ..Default::default()
                 },

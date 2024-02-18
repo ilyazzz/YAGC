@@ -16,6 +16,8 @@ pub struct FanCurveFrame {
     pub container: Box,
     curve_container: Frame,
     points: Rc<RefCell<Vec<PointAdjustment>>>,
+    start_threshold_adjustment: Adjustment,
+    stop_threshold_adjustment: Adjustment,
 }
 
 impl FanCurveFrame {
@@ -66,12 +68,17 @@ impl FanCurveFrame {
         root_box.append(&temperature_title_label);
         root_box.append(&buttons_box);
 
+        let start_threshold_adjustment = basic_adj(&root_box, "Fan start threshold");
+        let stop_threshold_adjustment = basic_adj(&root_box, "Fan stop threshold");
+
         let points = Rc::new(RefCell::new(Vec::new()));
 
         let curve_frame = Self {
             container: root_box,
             curve_container,
             points,
+            start_threshold_adjustment,
+            stop_threshold_adjustment,
         };
 
         default_button.connect_clicked(clone!(@strong curve_frame => move |_| {
@@ -147,6 +154,22 @@ impl FanCurveFrame {
         curve
     }
 
+    pub fn set_start_threshold(&self, value: f64) {
+        self.start_threshold_adjustment.set_value(value * 100.0);
+    }
+
+    pub fn set_stop_threshold(&self, value: f64) {
+        self.stop_threshold_adjustment.set_value(value * 100.0);
+    }
+
+    pub fn get_start_threshold(&self) -> f64 {
+        self.start_threshold_adjustment.value() / 100.0
+    }
+
+    pub fn get_stop_threshold(&self) -> f64 {
+        self.stop_threshold_adjustment.value() / 100.0
+    }
+
     pub fn connect_adjusted<F: Fn() + 'static + Clone>(&self, f: F) {
         let closure = clone!(@strong f => move |_: &Adjustment| {
             f();
@@ -156,7 +179,50 @@ impl FanCurveFrame {
             point.ratio.connect_value_changed(closure.clone());
             point.temperature.connect_value_changed(closure.clone());
         }
+
+        self.start_threshold_adjustment
+            .connect_value_changed(closure.clone());
+        self.stop_threshold_adjustment
+            .connect_value_changed(closure);
     }
+}
+
+fn basic_adj(parent_box: &Box, label: &str) -> Adjustment {
+    let hbox = Box::new(Orientation::Horizontal, 5);
+
+    let label = Label::builder().label(label).halign(Align::Start).build();
+
+    let adjustment = Adjustment::new(0.0, 0.0, 100.0, 0.1, 1.0, 0.0);
+
+    let scale = Scale::builder()
+        .orientation(Orientation::Horizontal)
+        .adjustment(&adjustment)
+        .hexpand(true)
+        .margin_start(5)
+        .margin_end(5)
+        .build();
+
+    let value_selector = SpinButton::new(Some(&adjustment), 1.0, 1);
+    let value_label = Label::new(Some("0.0"));
+
+    let popover = Popover::builder().child(&value_selector).build();
+    let value_button = MenuButton::builder()
+        .popover(&popover)
+        .child(&value_label)
+        .build();
+
+    adjustment.connect_value_changed(clone!(@strong value_label => move |adjustment| {
+        let value = adjustment.value();
+        value_label.set_text(&format!("{value:.1}"));
+    }));
+
+    hbox.append(&label);
+    hbox.append(&scale);
+    hbox.append(&value_button);
+
+    parent_box.append(&hbox);
+
+    adjustment
 }
 
 #[cfg(all(test, feature = "gtk-tests"))]

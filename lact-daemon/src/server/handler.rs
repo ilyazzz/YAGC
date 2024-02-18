@@ -10,9 +10,8 @@ use amdgpu_sysfs::{
 use anyhow::{anyhow, Context};
 use lact_schema::{
     default_fan_curve,
-    request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
-    PowerStates,
+    request::{ConfirmCommand, SetClocksCommand, SetFanControl},
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, PmfwOptions, PowerStates,
 };
 use libflate::gzip;
 use nix::libc;
@@ -267,40 +266,35 @@ impl<'a> Handler {
         self.controller_by_id(id)?.get_clocks_info()
     }
 
-    pub async fn set_fan_control(
-        &'a self,
-        id: &str,
-        enabled: bool,
-        mode: Option<FanControlMode>,
-        static_speed: Option<f64>,
-        curve: Option<FanCurveMap>,
-        pmfw: PmfwOptions,
-    ) -> anyhow::Result<u64> {
+    pub async fn set_fan_control(&'a self, command: SetFanControl<'_>) -> anyhow::Result<u64> {
         let settings = {
             let mut config_guard = self
                 .config
                 .try_borrow_mut()
                 .map_err(|err| anyhow!("{err}"))?;
-            let gpu_config = config_guard.gpus.entry(id.to_owned()).or_default();
+            let gpu_config = config_guard.gpus.entry(command.id.to_owned()).or_default();
 
-            match mode {
+            match command.mode {
                 Some(mode) => match mode {
                     FanControlMode::Static => {
-                        if matches!(static_speed, Some(speed) if !(0.0..=1.0).contains(&speed)) {
+                        if matches!(command.static_speed, Some(speed) if !(0.0..=1.0).contains(&speed))
+                        {
                             return Err(anyhow!("static speed value out of range"));
                         }
 
                         if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone()
                         {
                             existing_settings.mode = mode;
-                            if let Some(static_speed) = static_speed {
+                            if let Some(static_speed) = command.static_speed {
                                 existing_settings.static_speed = static_speed;
                             }
                             Some(existing_settings)
                         } else {
                             Some(FanControlSettings {
                                 mode,
-                                static_speed: static_speed.unwrap_or_else(default_fan_static_speed),
+                                static_speed: command
+                                    .static_speed
+                                    .unwrap_or_else(default_fan_static_speed),
                                 ..Default::default()
                             })
                         }
@@ -309,18 +303,23 @@ impl<'a> Handler {
                         if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone()
                         {
                             existing_settings.mode = mode;
-                            if let Some(raw_curve) = curve {
+                            existing_settings.start_threshold = command.start_threshold;
+                            existing_settings.stop_threshold = command.stop_threshold;
+
+                            if let Some(raw_curve) = command.curve {
                                 let curve = FanCurve(raw_curve);
                                 curve.validate()?;
                                 existing_settings.curve = curve;
                             }
                             Some(existing_settings)
                         } else {
-                            let curve = FanCurve(curve.unwrap_or_else(default_fan_curve));
+                            let curve = FanCurve(command.curve.unwrap_or_else(default_fan_curve));
                             curve.validate()?;
                             Some(FanControlSettings {
                                 mode,
                                 curve,
+                                start_threshold: command.start_threshold,
+                                stop_threshold: command.stop_threshold,
                                 ..Default::default()
                             })
                         }
@@ -330,12 +329,12 @@ impl<'a> Handler {
             }
         };
 
-        self.edit_gpu_config(id.to_owned(), |config| {
-            config.fan_control_enabled = enabled;
+        self.edit_gpu_config(command.id.to_owned(), |config| {
+            config.fan_control_enabled = command.enabled;
             if let Some(settings) = settings {
                 config.fan_control_settings = Some(settings);
             }
-            config.pmfw_options = pmfw;
+            config.pmfw_options = command.pmfw;
         })
         .await
     }

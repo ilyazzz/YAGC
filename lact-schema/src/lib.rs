@@ -190,6 +190,8 @@ pub struct FanStats {
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
+    pub start_threshold: Option<f64>,
+    pub stop_threshold: Option<f64>,
     // RDNA3+ params
     #[serde(default)]
     pub pmfw_info: PmfwInfo,

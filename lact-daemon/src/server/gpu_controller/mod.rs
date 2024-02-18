@@ -269,6 +269,12 @@ impl GpuController {
                     target_temp: self.handle.get_fan_target_temperature().ok(),
                     minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
                 },
+                start_threshold: gpu_config
+                    .and_then(|config| config.fan_control_settings.as_ref())
+                    .map(|settings| settings.start_threshold),
+                stop_threshold: gpu_config
+                    .and_then(|config| config.fan_control_settings.as_ref())
+                    .map(|settings| settings.stop_threshold),
             },
             clockspeed: ClockspeedStats {
                 gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
@@ -391,6 +397,8 @@ impl GpuController {
         curve: FanCurve,
         temp_key: String,
         interval: Duration,
+        start_threshold: f64,
+        stop_threshold: f64,
     ) -> anyhow::Result<()> {
         // Use the PMFW curve functionality when it is available
         // Otherwise, fall back to manual fan control via a task
@@ -408,8 +416,14 @@ impl GpuController {
                 Ok(())
             }
             Err(_) => {
-                self.start_curve_fan_control_task(curve, temp_key, interval)
-                    .await
+                self.start_curve_fan_control_task(
+                    curve,
+                    temp_key,
+                    interval,
+                    start_threshold,
+                    stop_threshold,
+                )
+                .await
             }
         }
     }
@@ -419,6 +433,8 @@ impl GpuController {
         curve: FanCurve,
         temp_key: String,
         interval: Duration,
+        start_threshold: f64,
+        stop_threshold: f64,
     ) -> anyhow::Result<()> {
         // Stop existing task to re-apply new curve
         self.stop_fan_control(false).await?;
@@ -442,6 +458,7 @@ impl GpuController {
         let task_notify = notify.clone();
 
         let handle = tokio::task::spawn_local(async move {
+            let mut previous_pwm = 0;
             loop {
                 select! {
                     () = sleep(interval) => (),
@@ -452,13 +469,16 @@ impl GpuController {
                 let temp = temps
                     .remove(&temp_key)
                     .expect("Could not get temperature by given key");
-                let target_pwm = curve.pwm_at_temp(temp);
+
+                let target_pwm =
+                    curve.pwm_at_temp(temp, start_threshold, stop_threshold, previous_pwm);
                 trace!("fan control tick: setting pwm to {target_pwm}");
 
                 if let Err(err) = hw_mon.set_fan_pwm(target_pwm) {
                     error!("could not set fan speed: {err}, disabling fan control");
                     break;
                 }
+                previous_pwm = target_pwm;
             }
             debug!("exited fan control task");
         });
@@ -682,6 +702,8 @@ impl GpuController {
                             settings.curve.clone(),
                             settings.temperature_key.clone(),
                             interval,
+                            settings.start_threshold,
+                            settings.stop_threshold,
                         )
                         .await?;
                     }

@@ -15,7 +15,13 @@ pub struct FanCurve(pub FanCurveMap);
     clippy::cast_sign_loss
 )]
 impl FanCurve {
-    pub fn pwm_at_temp(&self, temp: Temperature) -> u8 {
+    pub fn pwm_at_temp(
+        &self,
+        temp: Temperature,
+        start_threshold: f64,
+        stop_threshold: f64,
+        previous_pwm: u8,
+    ) -> u8 {
         let current = temp.current.expect("No current temp");
 
         // This scenario is most likely unreachable as the kernel shuts down the GPU when it reaches critical temperature
@@ -40,7 +46,19 @@ impl FanCurve {
             (None, None) => panic!("Could not find fan speed on the curve! This is a bug."),
         };
 
-        (f32::from(u8::MAX) * percentage) as u8
+        let target_pwm = (f32::from(u8::MAX) * percentage) as u8;
+
+        if percentage < start_threshold as f32 {
+            // The fan is spinning down from a higher speed
+            // If it has not yet reached the stop threshold, do not turn it off
+            if target_pwm < previous_pwm && percentage > stop_threshold as f32 {
+                target_pwm
+            } else {
+                0
+            }
+        } else {
+            target_pwm
+        }
     }
 
     pub fn into_pmfw_curve(self, current_pmfw_curve: PmfwCurve) -> anyhow::Result<PmfwCurve> {
@@ -103,7 +121,7 @@ mod tests {
             crit: Some(150.0),
             crit_hyst: Some(-100.0),
         };
-        curve.pwm_at_temp(temp)
+        curve.pwm_at_temp(temp, 0.0, 0.0, 0)
     }
 
     #[test]
@@ -144,7 +162,7 @@ mod tests {
             crit: Some(90.0),
             crit_hyst: Some(0.0),
         };
-        let pwm = curve.pwm_at_temp(temp);
+        let pwm = curve.pwm_at_temp(temp, 0.0, 0.0, 0);
         assert_eq!(pwm, 255);
     }
 
@@ -157,7 +175,7 @@ mod tests {
                 crit: Some(90.0),
                 crit_hyst: Some(0.0),
             };
-            curve.pwm_at_temp(temp)
+            curve.pwm_at_temp(temp, 0.0, 0.0, 0)
         };
 
         assert_eq!(pwm_at_temp(30.0), 0);
@@ -178,7 +196,7 @@ mod tests {
                 crit: Some(90.0),
                 crit_hyst: Some(0.0),
             };
-            curve.pwm_at_temp(temp)
+            curve.pwm_at_temp(temp, 0.0, 0.0, 0)
         };
         assert_eq!(pwm_at_temp(40.0), 51);
         assert_eq!(pwm_at_temp(60.0), 127);
@@ -203,5 +221,70 @@ mod tests {
         let pmfw_curve = curve.into_pmfw_curve(current_pmfw_curve).unwrap();
         let expected_points = [(40, 20), (50, 35), (60, 50), (70, 75), (80, 100)];
         assert_eq!(&expected_points, pmfw_curve.points.as_ref());
+    }
+
+    #[test]
+    fn spinup_below_start_threshold() {
+        let curve = FanCurve::default();
+        let pwm = curve.pwm_at_temp(
+            Temperature {
+                current: Some(42.0),
+                crit: None,
+                crit_hyst: None,
+            },
+            0.25,
+            0.0,
+            0,
+        );
+        assert_eq!(0, pwm);
+    }
+
+    #[test]
+    fn spinup_above_start_threshold() {
+        let curve = FanCurve::default();
+        let pwm = curve.pwm_at_temp(
+            Temperature {
+                current: Some(45.0),
+                crit: None,
+                crit_hyst: None,
+            },
+            0.25,
+            0.0,
+            0,
+        );
+        // 27% - above the 25% threshold
+        assert_eq!(70, pwm);
+    }
+
+    #[test]
+    fn spindown_above_stop_thrsehold() {
+        let curve = FanCurve::default();
+        let pwm = curve.pwm_at_temp(
+            Temperature {
+                current: Some(42.0),
+                crit: None,
+                crit_hyst: None,
+            },
+            0.25,
+            0.21,
+            70,
+        );
+        assert_eq!(58, pwm);
+    }
+
+    #[test]
+    fn spindown_below_stop_thrsehold() {
+        let curve = FanCurve::default();
+        let pwm = curve.pwm_at_temp(
+            Temperature {
+                current: Some(40.0),
+                crit: None,
+                crit_hyst: None,
+            },
+            0.25,
+            0.21,
+            70,
+        );
+        assert_eq!(0, pwm);
     }
 }

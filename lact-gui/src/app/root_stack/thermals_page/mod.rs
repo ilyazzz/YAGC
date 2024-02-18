@@ -25,6 +25,8 @@ pub struct ThermalsSettings {
     pub static_speed: Option<f64>,
     pub curve: Option<FanCurveMap>,
     pub pmfw: PmfwOptions,
+    pub start_threshold: f64,
+    pub stop_threshold: f64,
 }
 
 #[derive(Clone)]
@@ -188,6 +190,13 @@ impl ThermalsPage {
                 self.fan_curve_frame.set_curve(&default_fan_curve());
             }
 
+            if let Some(start_threshold) = stats.fan.start_threshold {
+                self.fan_curve_frame.set_start_threshold(start_threshold);
+            }
+            if let Some(stop_threshold) = stats.fan.stop_threshold {
+                self.fan_curve_frame.set_stop_threshold(stop_threshold);
+            }
+
             self.pmfw_frame.set_info(&stats.fan.pmfw_info);
         }
     }
@@ -226,6 +235,8 @@ impl ThermalsPage {
             let static_speed = Some(self.fan_static_speed_adjustment.value() / 100.0);
             let curve = self.fan_curve_frame.get_curve();
             let curve = if curve.is_empty() { None } else { Some(curve) };
+            let start_threshold = self.fan_curve_frame.get_start_threshold();
+            let stop_threshold = self.fan_curve_frame.get_stop_threshold();
 
             let pmfw = self.pmfw_frame.get_pmfw_options();
 
@@ -235,6 +246,8 @@ impl ThermalsPage {
                 static_speed,
                 curve,
                 pmfw,
+                start_threshold,
+                stop_threshold,
             })
         } else {
             None
