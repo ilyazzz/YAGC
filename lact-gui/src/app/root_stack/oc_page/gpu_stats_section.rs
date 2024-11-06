@@ -85,7 +85,7 @@ impl GpuStatsSection {
                             out
                         })
                         .collect();
-                    let text = type_text.join(", ");
+                    let text: String = type_text.join(", ").chars().take(30).collect();
                     self.set_throttling(text);
                 }
             }
