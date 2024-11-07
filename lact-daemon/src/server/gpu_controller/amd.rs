@@ -20,7 +20,7 @@ use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
     PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
-use libdrm_amdgpu_sys::AMDGPU::ThrottlerBit;
+use libdrm_amdgpu_sys::AMDGPU::{ThrottleStatus, ThrottlerBit};
 use pciid_parser::Database;
 use std::{
     borrow::Cow,
@@ -467,10 +467,12 @@ impl AmdGpuController {
         self.drm_handle
             .as_ref()
             .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
-            .and_then(|metrics| metrics.get_throttle_status_info())
-            .map(|throttle| {
+            .and_then(|metrics| metrics.get_indep_throttle_status())
+            .map(|throttle_value| {
+                info!("Current throttle value: {throttle_value:X}");
                 let mut grouped_bits: HashMap<ThrottlerType, HashSet<u8>> = HashMap::new();
 
+                let throttle = ThrottleStatus::new(throttle_value);
                 for bit in throttle.get_all_throttler() {
                     let throttle_type = ThrottlerType::from(bit);
                     grouped_bits
