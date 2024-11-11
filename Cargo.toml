@@ -10,7 +10,9 @@ members = [
 ]
 
 [workspace.dependencies]
-amdgpu-sysfs = { version = "0.17.0", features = ["serde"] }
+amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", branch = "bc-250", features = [
+    "serde",
+] }
 serde = { version = "1.0", features = ["derive"] }
 serde_with = { version = "3.5.0", default-features = false, features = [
     "macros",
