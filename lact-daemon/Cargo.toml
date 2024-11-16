@@ -29,7 +29,7 @@ tokio = { workspace = true, features = [
 futures = { workspace = true }
 indexmap = { workspace = true }
 
-nvml-wrapper = { git = "https://github.com/ilya-zlobintsev/nvml-wrapper", branch = "lact" }
+nvml-wrapper = { git = "https://github.com/ilya-zlobintsev/nvml-wrapper", branch = "fix/nobara-nvml" }
 bitflags = "2.6.0"
 pciid-parser = { version = "0.7", features = ["serde"] }
 serde_yaml = "0.9"
