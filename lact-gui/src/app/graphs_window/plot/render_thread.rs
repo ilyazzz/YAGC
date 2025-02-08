@@ -9,7 +9,6 @@ use itertools::Itertools;
 use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters::style::RelativeSize;
-use plotters_cairo::CairoBackend;
 use std::cmp::{max, min};
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
@@ -131,7 +130,7 @@ impl RenderThread {
 }
 
 fn process_request(render_request: RenderRequest, last_texture: &Mutex<Option<MemoryTexture>>) {
-    // Create a new ImageSurface for Cairo rendering.
+    /*// Create a new ImageSurface for Cairo rendering.
     let mut surface = ImageSurface::create(
         cairo::Format::ARgb32,
         (render_request.width * render_request.supersample_factor) as i32,
@@ -178,7 +177,7 @@ fn process_request(render_request: RenderRequest, last_texture: &Mutex<Option<Me
         (result, last_texture) => {
             *last_texture = result;
         }
-    };
+    };*/
 }
 
 // Implement the default constructor for RenderThread using the `new` method.
@@ -400,11 +399,13 @@ mod benches {
     use crate::app::graphs_window::plot::PlotData;
     use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
     use divan::{counter::ItemsCount, Bencher};
+    use gtk::prelude::SnapshotExt;
+    use plotters_gtk4::SnapshotBackend;
     use std::sync::Mutex;
 
     #[divan::bench]
     fn render_plot(bencher: Bencher) {
-        let last_texture = &Mutex::new(None);
+        // let last_texture = &Mutex::new(None);
 
         bencher
             .with_inputs(sample_plot_data)
@@ -423,7 +424,20 @@ mod benches {
                     time_period_seconds: 60,
                 };
 
-                process_request(request, last_texture)
+                let snapshot = gtk::Snapshot::new();
+                snapshot.scale(
+                    1.0 / request.supersample_factor as f32,
+                    1.0 / request.supersample_factor as f32,
+                );
+                let backend = SnapshotBackend::new(
+                    &snapshot,
+                    (
+                        request.width * request.supersample_factor,
+                        request.height * request.supersample_factor,
+                    ),
+                );
+                request.draw(backend).unwrap();
+                // process_request(request, last_texture)
             });
     }
 

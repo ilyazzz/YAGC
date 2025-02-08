@@ -18,6 +18,7 @@ anyhow = { workspace = true }
 divan = { workspace = true }
 lact-daemon = { path = "../lact-daemon", features = ["bench"] }
 lact-gui = { path = "../lact-gui", features = ["bench"] }
+gtk = { version = "0.9", package = "gtk4" }
 
 [[bench]]
 name = "bench"

@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use glib::Properties;
 
 use gtk::{glib, prelude::*, subclass::prelude::*};
+use plotters_gtk4::SnapshotBackend;
 
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -24,7 +25,7 @@ pub struct Plot {
     secondary_y_label_area_relative_size: Cell<f64>,
     pub(super) data: RefCell<PlotData>,
     pub(super) dirty: Cell<bool>,
-    render_thread: RenderThread,
+    // render_thread: RenderThread,
     #[property(get, set)]
     time_period_seconds: Cell<i64>,
 }
@@ -50,42 +51,58 @@ impl ObjectImpl for Plot {
 
 impl WidgetImpl for Plot {
     fn snapshot(&self, snapshot: &gtk::Snapshot) {
+        snapshot.scale(0.25, 0.25);
+
         let width = self.obj().width() as u32;
         let height = self.obj().height() as u32;
 
         if width == 0 || height == 0 {
             return;
         }
+        let request = RenderRequest {
+            data: self.data.borrow().clone(),
+            width,
+            height,
+            title: self.title.borrow().clone(),
+            value_suffix: self.value_suffix.borrow().clone(),
+            secondary_value_suffix: self.secondary_value_suffix.borrow().clone(),
+            y_label_area_relative_size: self.y_label_area_relative_size.get(),
+            secondary_y_label_relative_area_size: self.secondary_y_label_area_relative_size.get(),
+            supersample_factor: 4,
+            time_period_seconds: self.time_period_seconds.get(),
+        };
+        let backend = SnapshotBackend::new(snapshot, (width * 4, height * 4));
+        request.draw(backend).unwrap();
 
-        let last_texture = self.render_thread.get_last_texture();
-        let size_changed = last_texture
-            .as_ref()
-            .map(|texture| (texture.width() as u32, texture.height() as u32) != (width, height))
-            .unwrap_or(true);
+        // let last_texture = self.render_thread.get_last_texture();
+        // let size_changed = last_texture
+        //     .as_ref()
+        //     .map(|texture| (texture.width() as u32, texture.height() as u32) != (width, height))
+        //     .unwrap_or(true);
 
-        if self.dirty.replace(false) || size_changed {
-            self.render_thread.replace_render_request(RenderRequest {
-                data: self.data.borrow().clone(),
-                width,
-                height,
-                title: self.title.borrow().clone(),
-                value_suffix: self.value_suffix.borrow().clone(),
-                secondary_value_suffix: self.secondary_value_suffix.borrow().clone(),
-                y_label_area_relative_size: self.y_label_area_relative_size.get(),
-                secondary_y_label_relative_area_size: self
-                    .secondary_y_label_area_relative_size
-                    .get(),
-                supersample_factor: 4,
-                time_period_seconds: self.time_period_seconds.get(),
-            });
-        }
+        // if self.dirty.replace(false) || size_changed {
+        //     self.render_thread.replace_render_request(RenderRequest {
+        //         data: self.data.borrow().clone(),
+        //         width,
+        //         height,
+        //         title: self.title.borrow().clone(),
+        //         value_suffix: self.value_suffix.borrow().clone(),
+        //         secondary_value_suffix: self.secondary_value_suffix.borrow().clone(),
+        //         y_label_area_relative_size: self.y_label_area_relative_size.get(),
+        //         secondary_y_label_relative_area_size: self
+        //             .secondary_y_label_area_relative_size
+        //             .get(),
+        //         supersample_factor: 4,
+        //         time_period_seconds: self.time_period_seconds.get(),
+        //     });
+        // }
 
-        // Rendering is always behind by at least one frame, but it's not an issue
-        if let Some(texture) = last_texture {
-            let bounds = gtk::graphene::Rect::new(0.0, 0.0, width as f32, height as f32);
-            // Uses by default Trillinear texture filtering, which is quite good at 4x supersampling
-            snapshot.append_texture(&texture, &bounds);
-        }
+        // // Rendering is always behind by at least one frame, but it's not an issue
+        // if let Some(texture) = last_texture {
+        //     let bounds = gtk::graphene::Rect::new(0.0, 0.0, width as f32, height as f32);
+        //     // Uses by default Trillinear texture filtering, which is quite good at 4x supersampling
+        //     snapshot.append_texture(&texture, &bounds);
+        // }
     }
 }
 

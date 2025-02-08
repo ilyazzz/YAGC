@@ -1283,6 +1283,7 @@ version = "0.7.1"
 dependencies = [
  "anyhow",
  "divan",
+ "gtk4",
  "lact-cli",
  "lact-daemon",
  "lact-gui",
@@ -1366,7 +1367,7 @@ dependencies = [
  "lact-schema",
  "libadwaita",
  "plotters",
- "plotters-cairo",
+ "plotters-gtk4",
  "pretty_assertions",
  "relm4",
  "relm4-components",
@@ -1777,6 +1778,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "pangocairo"
+version = "0.20.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4690509a2fea2a6552a0ef8aa3e5f790c1365365ee0712afa1aedb39af3997b6"
+dependencies = [
+ "cairo-rs",
+ "glib",
+ "libc",
+ "pango",
+ "pangocairo-sys",
+]
+
+[[package]]
+name = "pangocairo-sys"
+version = "0.20.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5be6ac24147911a6a46783922fc288cf02f67570bc0d360e563b5b26aead6767"
+dependencies = [
+ "cairo-sys-rs",
+ "glib-sys",
+ "libc",
+ "pango-sys",
+ "system-deps",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1857,12 +1884,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df42e13c12958a16b3f7f4386b9ab1f3e7933914ecea48da7139435263a4172a"
 
 [[package]]
-name = "plotters-cairo"
-version = "0.7.0"
+name = "plotters-gtk4"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e7a3a2567b691ed2f0670ea3cc39988add29c968228b474ec5fe8261b1ff2a5"
+checksum = "2f18ee173b0c8e6d8cb01c1e32a9b41bf41d74b277a69f22277bab05870e13d7"
 dependencies = [
- "cairo-rs",
+ "gtk4",
+ "pangocairo",
  "plotters-backend",
 ]
 
