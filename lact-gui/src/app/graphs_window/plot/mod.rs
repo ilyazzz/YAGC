@@ -1,7 +1,6 @@
 mod cubic_spline;
 mod imp;
-mod render_thread;
-mod to_texture_ext;
+mod render;
 
 use std::cell::RefMut;
 

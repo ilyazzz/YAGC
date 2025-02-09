@@ -1,24 +1,12 @@
 use super::cubic_spline::cubic_spline_interpolation;
-use super::to_texture_ext::ToTextureExt;
 use super::PlotData;
 use anyhow::Context;
-use cairo::{Context as CairoContext, ImageSurface};
 
-use gtk::gdk::MemoryTexture;
 use itertools::Itertools;
 use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters::style::RelativeSize;
 use std::cmp::{max, min};
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex};
-use thread_priority::{ThreadBuilderExt, ThreadPriority};
-use tracing::error;
-
-enum Request {
-    Terminate,
-    Render(RenderRequest),
-}
 
 #[derive(Default)]
 pub struct RenderRequest {
@@ -33,158 +21,7 @@ pub struct RenderRequest {
     pub width: u32,
     pub height: u32,
 
-    pub supersample_factor: u32,
-
     pub time_period_seconds: i64,
-}
-
-#[derive(Default)]
-struct RenderThreadState {
-    request_condition_variable: std::sync::Condvar,
-    last_texture: Mutex<Option<MemoryTexture>>,
-    current_request: Mutex<Option<Request>>,
-}
-
-/// A rendering thread that will listen for rendering requests and process them asynchronously.
-/// Requests that weren't processed in time or resulted in error are dropped.
-pub struct RenderThread {
-    /// Shared state is between the main thread and the rendering thread.
-    state: Arc<RenderThreadState>,
-    thread_handle: Option<std::thread::JoinHandle<()>>,
-}
-
-/// Ensure the rendering thread is terminated properly when the RenderThread object is dropped.
-/// We send Request::Terminate to swiftly terminate rendering thread and then join to let it finish last render.
-impl Drop for RenderThread {
-    fn drop(&mut self) {
-        self.state
-            .current_request
-            .lock()
-            .unwrap()
-            .replace(Request::Terminate);
-        self.state.request_condition_variable.notify_all();
-
-        self.thread_handle.take().map(|handle| handle.join().ok());
-    }
-}
-
-impl RenderThread {
-    pub fn new() -> Self {
-        let state = Arc::new(RenderThreadState::default());
-
-        let thread_handle = std::thread::Builder::new()
-            .name("Plot-Renderer".to_owned())
-            // Render thread is very unimportant, skipping frames and rendering slowly is ok
-            .spawn_with_priority(ThreadPriority::Min, {
-                let state = state.clone();
-                move |_| loop {
-                    let RenderThreadState {
-                        request_condition_variable,
-                        last_texture,
-                        current_request,
-                    } = &*state;
-
-                    // Wait until there is a new request (blocking if there is none).
-                    let mut current_request = request_condition_variable
-                        .wait_while(current_request.lock().unwrap(), |pending_request| {
-                            pending_request.is_none()
-                        })
-                        .unwrap();
-
-                    match current_request.take() {
-                        Some(Request::Render(render_request)) => {
-                            process_request(render_request, last_texture);
-                        }
-                        // Terminate the thread if a Terminate request is received.
-                        Some(Request::Terminate) => break,
-                        None => {}
-                    }
-                }
-            })
-            .unwrap();
-
-        Self {
-            state,
-            thread_handle: Some(thread_handle),
-        }
-    }
-
-    /// Replace the current render request with a new one (effectively dropping possible pending frame)
-    /// Returns dropped request if any
-    pub fn replace_render_request(&self, request: RenderRequest) -> Option<RenderRequest> {
-        let mut current_request = self.state.current_request.lock().unwrap();
-        let result = current_request.replace(Request::Render(request));
-        self.state.request_condition_variable.notify_one(); // Notify the thread to start rendering.
-
-        match result? {
-            Request::Render(render) => Some(render),
-            Request::Terminate => None,
-        }
-    }
-
-    /// Return the last texture.
-    /// Requests that weren't processed in time or resulted in error are dropped.
-    pub fn get_last_texture(&self) -> Option<MemoryTexture> {
-        self.state.last_texture.lock().unwrap().deref().clone()
-    }
-}
-
-fn process_request(render_request: RenderRequest, last_texture: &Mutex<Option<MemoryTexture>>) {
-    /*// Create a new ImageSurface for Cairo rendering.
-    let mut surface = ImageSurface::create(
-        cairo::Format::ARgb32,
-        (render_request.width * render_request.supersample_factor) as i32,
-        (render_request.height * render_request.supersample_factor) as i32,
-    )
-    .unwrap();
-
-    let cairo_context = CairoContext::new(&surface).unwrap();
-
-    // Don't use Cairo's default antialiasing, it makes the lines look too blurry
-    // Supersampling is our 2D anti-aliasing solution.
-    if render_request.supersample_factor > 1 {
-        cairo_context.set_antialias(cairo::Antialias::None);
-    }
-
-    let cairo_backend = CairoBackend::new(
-        &cairo_context,
-        // Supersample the rendering
-        (
-            render_request.width * render_request.supersample_factor,
-            render_request.height * render_request.supersample_factor,
-        ),
-    )
-    .unwrap();
-
-    if let Err(err) = render_request.draw(cairo_backend) {
-        error!("Failed to plot chart: {err:?}")
-    }
-
-    match (
-        surface.to_texture(),
-        last_texture.lock().unwrap().deref_mut(),
-    ) {
-        // Successfully generated a new texture, but the old texture is also there
-        (Some(texture), Some(last_texture)) => {
-            *last_texture = texture;
-        }
-        // If texture conversion failed, keep the old texture if it's present.
-        (None, None) => {
-            error!("Failed to convert cairo surface to gdk texture, not overwriting old one");
-        }
-        // Update the last texture, if The old texture wasn't ever generated (None),
-        // No matter the result of conversion
-        (result, last_texture) => {
-            *last_texture = result;
-        }
-    };*/
-}
-
-// Implement the default constructor for RenderThread using the `new` method.
-impl Default for RenderThread {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl RenderRequest {
@@ -395,18 +232,15 @@ impl RenderRequest {
 
 #[cfg(feature = "bench")]
 mod benches {
-    use super::{process_request, RenderRequest};
-    use crate::app::graphs_window::plot::PlotData;
+    use super::RenderRequest;
+    use crate::app::graphs_window::plot::{imp::SUPERSAMPLE_FACTOR, PlotData};
     use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
     use divan::{counter::ItemsCount, Bencher};
     use gtk::prelude::SnapshotExt;
     use plotters_gtk4::SnapshotBackend;
-    use std::sync::Mutex;
 
     #[divan::bench]
     fn render_plot(bencher: Bencher) {
-        // let last_texture = &Mutex::new(None);
-
         bencher
             .with_inputs(sample_plot_data)
             .input_counter(|_| ItemsCount::new(1usize))
@@ -420,24 +254,22 @@ mod benches {
                     data,
                     width: 1920,
                     height: 1080,
-                    supersample_factor: 4,
                     time_period_seconds: 60,
                 };
 
                 let snapshot = gtk::Snapshot::new();
                 snapshot.scale(
-                    1.0 / request.supersample_factor as f32,
-                    1.0 / request.supersample_factor as f32,
+                    1.0 / SUPERSAMPLE_FACTOR as f32,
+                    1.0 / SUPERSAMPLE_FACTOR as f32,
                 );
                 let backend = SnapshotBackend::new(
                     &snapshot,
                     (
-                        request.width * request.supersample_factor,
-                        request.height * request.supersample_factor,
+                        request.width * SUPERSAMPLE_FACTOR,
+                        request.height * SUPERSAMPLE_FACTOR,
                     ),
                 );
                 request.draw(backend).unwrap();
-                // process_request(request, last_texture)
             });
     }
 
