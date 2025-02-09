@@ -1,17 +1,16 @@
-mod cubic_spline;
+// mod cubic_spline;
 mod imp;
-mod render_thread;
-mod to_texture_ext;
-
-use std::cell::RefMut;
+// mod render_thread;
+// mod to_texture_ext;
 
 pub use imp::PlotData;
+use std::cell::RefMut;
 
 use gtk::glib::{self, subclass::types::ObjectSubclassIsExt, Object};
 
 glib::wrapper! {
     pub struct Plot(ObjectSubclass<imp::Plot>)
-        @extends gtk::Widget;
+        @extends gtk::Widget, gtk::Box;
 }
 
 impl Default for Plot {

@@ -3,6 +3,22 @@
 version = 3
 
 [[package]]
+name = "ab_glyph"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec3672c180e71eeaaac3a541fbbc5f5ad4def8b747c595ad30d674e43049f7b0"
+dependencies = [
+ "ab_glyph_rasterizer",
+ "owned_ttf_parser",
+]
+
+[[package]]
+name = "ab_glyph_rasterizer"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c71b1793ee61086797f5c80b6efa2b8ffa6d5dd703f118545808a7f2e27f7046"
+
+[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -598,10 +614,71 @@ dependencies = [
 ]
 
 [[package]]
+name = "ecolor"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "878e9005799dd739e5d5d89ff7480491c12d0af571d44399bcaefa1ee172dd76"
+dependencies = [
+ "bytemuck",
+ "emath",
+]
+
+[[package]]
+name = "egui"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d2768eaa6d5c80a6e2a008da1f0e062dff3c83eb2b28605ea2d0732d46e74d6"
+dependencies = [
+ "ahash",
+ "bitflags 2.8.0",
+ "emath",
+ "epaint",
+ "nohash-hasher",
+ "profiling",
+]
+
+[[package]]
+name = "egui_glow"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a53e2374a964c3c793cb0b8ead81bca631f24974bc0b747d1a5622f4e39fdd0"
+dependencies = [
+ "ahash",
+ "bytemuck",
+ "egui",
+ "glow",
+ "log",
+ "memoffset",
+ "profiling",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "egui_plot"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1794c66fb727dac28dffed2e4b548e5118d1cccc331d368a35411d68725dde71"
+dependencies = [
+ "ahash",
+ "egui",
+ "emath",
+]
+
+[[package]]
 name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
+
+[[package]]
+name = "emath"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55b7b6be5ad1d247f11738b0e4699d9c20005ed366f2c29f5ec1f8e1de180bc2"
+dependencies = [
+ "bytemuck",
+]
 
 [[package]]
 name = "encode_unicode"
@@ -646,6 +723,41 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "epaint"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "275b665a7b9611d8317485187e5458750850f9e64604d3c58434bb3fc1d22915"
+dependencies = [
+ "ab_glyph",
+ "ahash",
+ "bytemuck",
+ "ecolor",
+ "emath",
+ "epaint_default_fonts",
+ "nohash-hasher",
+ "parking_lot",
+ "profiling",
+]
+
+[[package]]
+name = "epaint_default_fonts"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9343d356d7cac894dacafc161b4654e0881301097bdf32a122ed503d97cb94b6"
+
+[[package]]
+name = "epoxy"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b96028ce3ff03972312fd8243281858e80fc0f9838b1f035676b6c199214d9e"
+dependencies = [
+ "gl_generator",
+ "libc",
+ "pkg-config",
+ "shared_library",
 ]
 
 [[package]]
@@ -933,6 +1045,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "gl_generator"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a795170cbd85b5a7baa58d6d7525cae6a03e486859860c220f7ebbbdd379d0a"
+dependencies = [
+ "khronos_api",
+ "log",
+ "xml-rs 0.7.0",
+]
+
+[[package]]
+name = "gl_loader"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e32d96dd5f881490e537041d5532320812ba096097f07fccb4626578da0b99d3"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "glib"
 version = "0.20.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -981,6 +1114,18 @@ name = "glob"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
+
+[[package]]
+name = "glow"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5e5ea60d70410161c8bf5da3fdfeaa1c72ed2c15f8bbb9d19fe3a4fad085f08"
+dependencies = [
+ "js-sys",
+ "slotmap",
+ "wasm-bindgen",
+ "web-sys",
+]
 
 [[package]]
 name = "gobject-sys"
@@ -1045,6 +1190,18 @@ dependencies = [
  "libc",
  "pango-sys",
  "system-deps",
+]
+
+[[package]]
+name = "gtk-egui-area"
+version = "0.1.1"
+dependencies = [
+ "egui",
+ "egui_glow",
+ "epoxy",
+ "gl_loader",
+ "gtk4",
+ "libloading 0.8.6",
 ]
 
 [[package]]
@@ -1258,6 +1415,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "khronos_api"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "037ab472c33f67b5fbd3e9163a2645319e5356fcd355efa6d4eb7fff4bbcb554"
+
+[[package]]
 name = "kqueue"
 version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1358,6 +1521,8 @@ dependencies = [
  "anyhow",
  "cairo-rs",
  "chrono",
+ "egui_plot",
+ "gtk-egui-area",
  "gtk4",
  "itertools",
  "lact-client",
@@ -1614,6 +1779,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
+
+[[package]]
 name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1750,6 +1921,15 @@ name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
+
+[[package]]
+name = "owned_ttf_parser"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22ec719bbf3b2a81c109a4e20b1f129b5566b7dce654bc3872f6a05abf82b2c4"
+dependencies = [
+ "ttf-parser",
+]
 
 [[package]]
 name = "pango"
@@ -1908,6 +2088,12 @@ checksum = "60946a68e5f9d28b0dc1c21bb8a97ee7d018a8b322fa57838ba31cc878e22d99"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "profiling"
+version = "1.0.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afbdc74edc00b6f6a218ca6a5364d6226a259d4b8ea1af4a0ea063f27e179f4d"
 
 [[package]]
 name = "quote"
@@ -2209,6 +2395,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "shared_library"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a9e7e0f2bfae24d8a5b5a66c5b257a83c7412304311512a0c054cd5e619da11"
+dependencies = [
+ "lazy_static",
+ "libc",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2246,6 +2442,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f92a496fb766b417c996b9c5e57daf2f7ad3b0bebe1ccfca4856390e3d3bb67"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "slotmap"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbff4acf519f630b3a3ddcfaea6c06b42174d9a44bc70c620e9ed1649d58b82a"
+dependencies = [
+ "version_check",
 ]
 
 [[package]]
@@ -2581,6 +2786,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ttf-parser"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
+
+[[package]]
 name = "uds_windows"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2645,7 +2856,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81086c28be67a8759cd80cbb3c8f7b520e0874605fc5eb74d5a1c9c2d1878e79"
 dependencies = [
- "xml-rs",
+ "xml-rs 0.8.25",
 ]
 
 [[package]]
@@ -3001,6 +3212,15 @@ checksum = "ec1cdab258fb55c0da61328dc52c8764709b249011b2cad0454c72f0bf10a1f6"
 dependencies = [
  "libc",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "xml-rs"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c1cb601d29fe2c2ac60a2b2e5e293994d87a1f6fa9687a31a15270f909be9c2"
+dependencies = [
+ "bitflags 1.3.2",
 ]
 
 [[package]]

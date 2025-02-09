@@ -1,13 +1,17 @@
 use chrono::NaiveDateTime;
+use egui_plot::AxisHints;
+use egui_plot::PlotBounds;
+use egui_plot::PlotPoint;
+use egui_plot::PlotPoints;
 use glib::Properties;
 
 use gtk::{glib, prelude::*, subclass::prelude::*};
+use gtk_egui_area::egui;
+use gtk_egui_area::EguiArea;
 
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
-
-use super::render_thread::{RenderRequest, RenderThread};
 
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::Plot)]
@@ -24,7 +28,6 @@ pub struct Plot {
     secondary_y_label_area_relative_size: Cell<f64>,
     pub(super) data: RefCell<PlotData>,
     pub(super) dirty: Cell<bool>,
-    render_thread: RenderThread,
     #[property(get, set)]
     time_period_seconds: Cell<i64>,
 }
@@ -33,7 +36,7 @@ pub struct Plot {
 impl ObjectSubclass for Plot {
     const NAME: &'static str = "Plot";
     type Type = super::Plot;
-    type ParentType = gtk::Widget;
+    type ParentType = gtk::Box;
 }
 
 #[glib::derived_properties]
@@ -41,58 +44,62 @@ impl ObjectImpl for Plot {
     fn constructed(&self) {
         self.parent_constructed();
 
-        let obj = self.obj();
+        let obj = self.obj().clone();
         obj.set_height_request(250);
         obj.set_hexpand(true);
         obj.set_vexpand(true);
-    }
-}
 
-impl WidgetImpl for Plot {
-    fn snapshot(&self, snapshot: &gtk::Snapshot) {
-        let width = self.obj().width() as u32;
-        let height = self.obj().height() as u32;
+        let area = EguiArea::new(move |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let data = obj.imp().data.borrow();
 
-        if width == 0 || height == 0 {
-            return;
-        }
+                egui_plot::Plot::new(obj.title())
+                    .legend(egui_plot::Legend::default().position(egui_plot::Corner::RightBottom))
+                    .custom_x_axes(vec![AxisHints::new_x().label("Time").formatter(
+                        |point, _| {
+                            let time = chrono::DateTime::from_timestamp_millis(point.value as i64)
+                                .unwrap()
+                                .naive_local()
+                                .time();
+                            time.to_string()
+                        },
+                    )])
+                    .show(ui, |plot_ui| {
+                        let max_x = data
+                            .line_series_iter()
+                            .next()
+                            .and_then(|(_, points)| points.last())
+                            .map(|point| point.x)
+                            .unwrap_or_default();
+                        let min_x = max_x - (obj.time_period_seconds() * 1000) as f64;
 
-        let last_texture = self.render_thread.get_last_texture();
-        let size_changed = last_texture
-            .as_ref()
-            .map(|texture| (texture.width() as u32, texture.height() as u32) != (width, height))
-            .unwrap_or(true);
+                        let bounds = PlotBounds::from_min_max(
+                            [min_x, -f64::INFINITY],
+                            [max_x, f64::INFINITY],
+                        );
+                        plot_ui.set_plot_bounds(bounds);
+                        plot_ui.set_auto_bounds([false, true]);
 
-        if self.dirty.replace(false) || size_changed {
-            self.render_thread.replace_render_request(RenderRequest {
-                data: self.data.borrow().clone(),
-                width,
-                height,
-                title: self.title.borrow().clone(),
-                value_suffix: self.value_suffix.borrow().clone(),
-                secondary_value_suffix: self.secondary_value_suffix.borrow().clone(),
-                y_label_area_relative_size: self.y_label_area_relative_size.get(),
-                secondary_y_label_relative_area_size: self
-                    .secondary_y_label_area_relative_size
-                    .get(),
-                supersample_factor: 4,
-                time_period_seconds: self.time_period_seconds.get(),
+                        for (name, points) in data.line_series_iter() {
+                            plot_ui.line(
+                                egui_plot::Line::new(PlotPoints::Borrowed(points)).name(name),
+                            );
+                        }
+                    })
             });
-        }
-
-        // Rendering is always behind by at least one frame, but it's not an issue
-        if let Some(texture) = last_texture {
-            let bounds = gtk::graphene::Rect::new(0.0, 0.0, width as f32, height as f32);
-            // Uses by default Trillinear texture filtering, which is quite good at 4x supersampling
-            snapshot.append_texture(&texture, &bounds);
-        }
+        });
+        self.obj().append(&area);
     }
 }
+
+impl WidgetImpl for Plot {}
+
+impl BoxImpl for Plot {}
 
 #[derive(Default, Clone)]
 pub struct PlotData {
-    pub(super) line_series: BTreeMap<String, Vec<(i64, f64)>>,
-    pub(super) secondary_line_series: BTreeMap<String, Vec<(i64, f64)>>,
+    pub(super) line_series: BTreeMap<String, Vec<PlotPoint>>,
+    pub(super) secondary_line_series: BTreeMap<String, Vec<PlotPoint>>,
     pub(super) throttling: Vec<(i64, (String, bool))>,
 }
 
@@ -109,7 +116,10 @@ impl PlotData {
         self.line_series
             .entry(name.to_owned())
             .or_default()
-            .push((time.and_utc().timestamp_millis(), point));
+            .push(PlotPoint::new(
+                time.and_utc().timestamp_millis() as f64,
+                point,
+            ));
     }
 
     pub fn push_secondary_line_series_with_time(
@@ -121,7 +131,10 @@ impl PlotData {
         self.secondary_line_series
             .entry(name.to_owned())
             .or_default()
-            .push((time.and_utc().timestamp_millis(), point));
+            .push(PlotPoint::new(
+                time.and_utc().timestamp_millis() as f64,
+                point,
+            ));
     }
 
     pub fn push_throttling(&mut self, name: &str, point: bool) {
@@ -134,11 +147,11 @@ impl PlotData {
         ));
     }
 
-    pub fn line_series_iter(&self) -> impl Iterator<Item = (&String, &Vec<(i64, f64)>)> {
+    pub fn line_series_iter(&self) -> impl Iterator<Item = (&String, &Vec<PlotPoint>)> {
         self.line_series.iter()
     }
 
-    pub fn secondary_line_series_iter(&self) -> impl Iterator<Item = (&String, &Vec<(i64, f64)>)> {
+    pub fn secondary_line_series_iter(&self) -> impl Iterator<Item = (&String, &Vec<PlotPoint>)> {
         self.secondary_line_series.iter()
     }
 
@@ -151,23 +164,17 @@ impl PlotData {
     pub fn trim_data(&mut self, last_seconds: i64) {
         // Limit data to N seconds
         for data in self.line_series.values_mut() {
-            let maximum_point = data
-                .last()
-                .map(|(date_time, _)| *date_time)
-                .unwrap_or_default();
+            let maximum_point = data.last().map(|point| point.x as i64).unwrap_or_default();
 
-            data.retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
+            data.retain(|point| ((maximum_point - point.x as i64) / 1000) < last_seconds);
         }
 
         self.line_series.retain(|_, data| !data.is_empty());
 
         for data in self.secondary_line_series.values_mut() {
-            let maximum_point = data
-                .last()
-                .map(|(date_time, _)| *date_time)
-                .unwrap_or_default();
+            let maximum_point = data.last().map(|point| point.x as i64).unwrap_or_default();
 
-            data.retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
+            data.retain(|point| ((maximum_point - point.x as i64) / 1000) < last_seconds);
         }
 
         self.secondary_line_series

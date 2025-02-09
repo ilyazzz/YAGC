@@ -38,6 +38,7 @@ impl relm4::Component for GraphsWindow {
                 set_margin_all: 10,
                 set_row_spacing: 20,
                 set_column_spacing: 20,
+                set_column_homogeneous: true,
 
                 attach[0, 0, 1, 1]: temperature_plot = &Plot {
                     set_title: "Temperature",
