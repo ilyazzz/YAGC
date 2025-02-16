@@ -181,6 +181,21 @@ Make sure to only use it in trusted networks and/or set up appropriate firewall 
 
 To enable it, edit `/etc/lact/config.yaml` and add `tcp_listen_address` with your desired address and in the `daemon` section.
 
+# Prometheus metrics exporter
+
+LACT supports exposing a prometheus-compatible metrics endpoint for GPU monitoring.
+See the `exporter_listen_address` option in [CONFIG.md](./docs/CONFIG.md).
+
+List of supported metrics:
+- `lact_gpu_info`
+- `lact_gpu_usage`
+- `lact_gpu_power_usage`
+- `lact_gpu_cap`
+- `lact_gpu_temperature`
+- `lact_gpu_frequency`
+- `lact_gpu_fan_pwm`
+- `lact_gpu_fan_rpm`
+
 Example:
 ```yaml
 daemon:

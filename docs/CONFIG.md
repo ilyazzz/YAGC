@@ -27,6 +27,9 @@ daemon:
   # By default TCP access is disabled, and only a unix socket is present.
   # Specifying this option enables the TCP listener.
   tcp_listen_address: 127.0.0.1:12853
+  # Prometheus metrics exporter listening address.
+  # When not specified (which is the default), the exporter is disabled.
+  exporter_listen_address: 127.0.0.1:9091
 
 # Period in seconds for how long settings should wait to be confirmed.
 # Most GPU setting change commands require a confirmation command to be used

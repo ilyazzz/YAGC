@@ -67,6 +67,7 @@ pub struct Daemon {
     #[serde(default)]
     pub disable_clocks_cleanup: bool,
     pub tcp_listen_address: Option<String>,
+    pub exporter_listen_address: Option<String>,
 }
 
 impl Default for Daemon {
@@ -76,6 +77,7 @@ impl Default for Daemon {
             admin_groups: DEFAULT_ADMIN_GROUPS.map(str::to_owned).to_vec(),
             disable_clocks_cleanup: false,
             tcp_listen_address: None,
+            exporter_listen_address: None,
         }
     }
 }

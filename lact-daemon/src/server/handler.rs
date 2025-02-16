@@ -369,7 +369,7 @@ impl<'a> Handler {
     }
 
     pub async fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
-        Ok(self.controller_by_id(id).await?.get_info())
+        Ok(self.controller_by_id(id).await?.get_info(false))
     }
 
     pub async fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
@@ -723,7 +723,7 @@ impl<'a> Handler {
 
             let data = json!({
                 "pci_info": controller.controller_info().pci_info.clone(),
-                "info": controller.get_info(),
+                "info": controller.get_info(false),
                 "stats": controller.get_stats(gpu_config),
                 "clocks_info": controller.get_clocks_info().ok(),
                 "power_profile_modes": controller.get_power_profile_modes().ok(),

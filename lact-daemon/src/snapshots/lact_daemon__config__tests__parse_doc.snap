@@ -10,6 +10,7 @@ daemon:
     - sudo
   disable_clocks_cleanup: false
   tcp_listen_address: "127.0.0.1:12853"
+  exporter_listen_address: "127.0.0.1:9091"
 apply_settings_timer: 5
 gpus:
   "1002:687F-1043:0555-0000:0b:00.0":

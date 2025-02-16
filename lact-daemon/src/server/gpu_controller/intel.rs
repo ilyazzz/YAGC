@@ -498,12 +498,16 @@ impl GpuController for IntelGpuController {
         &self.common
     }
 
-    fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
-            Ok(info) => Some(info),
-            Err(err) => {
-                warn!("could not load vulkan info: {err}");
-                None
+    fn get_info(&self, skip_vulkan: bool) -> DeviceInfo {
+        let vulkan_info = if skip_vulkan {
+            None
+        } else {
+            match get_vulkan_info(&self.common.pci_info) {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not load vulkan info: {err}");
+                    None
+                }
             }
         };
 

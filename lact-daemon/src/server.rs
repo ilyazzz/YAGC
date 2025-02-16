@@ -1,3 +1,4 @@
+mod exporter;
 pub mod gpu_controller;
 pub mod handler;
 mod profiles;
@@ -6,11 +7,11 @@ mod vulkan;
 
 use self::handler::Handler;
 use crate::{config::Config, socket};
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use futures::future::join_all;
 use lact_schema::{Pong, Request, Response};
 use serde::Serialize;
-use std::fmt::Debug;
+use std::{fmt::Debug, net::SocketAddr};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::{TcpListener, UnixListener},
@@ -38,7 +39,28 @@ impl Server {
             None
         };
 
+        let exporter_server = if let Some(exporter_address) = &config.daemon.exporter_listen_address
+        {
+            let addr: SocketAddr = exporter_address
+                .parse()
+                .context("Invalid exporter address")?;
+
+            let server = tiny_http::Server::http(addr)
+                .map_err(|err| anyhow!("Could not start metrics exporter: {err}"))?;
+            info!("Prometheus metrics exporter listening on {exporter_address}");
+
+            Some(server)
+        } else {
+            info!("Prometheus metrics exporter disabled");
+            None
+        };
+
         let handler = Handler::new(config).await?;
+
+        if let Some(server) = exporter_server {
+            let handler = handler.clone();
+            tokio::task::spawn_local(async move { exporter::run(server, &handler).await });
+        }
 
         Ok(Self {
             handler,
